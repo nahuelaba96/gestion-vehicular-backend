@@ -4,8 +4,9 @@ package database
 import (
 	"context"
 	"log"
-	"time"
+	"os"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -13,24 +14,22 @@ import (
 var MongoClient *mongo.Client
 var VehiculosCollection *mongo.Collection
 
-// mongo password RMc2axKooRJ5hGrT
-// mongo username nahuelaba96
-
 func ConnectMongo() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	mongoUser := os.Getenv("MONGO_USER")
+	mongoPassword := os.Getenv("MONGO_PASSWORD")
 
-	// compose
-	//clientOptions := options.Client().ApplyURI("mongodb://mongo:27017")
+	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+  	opts := options.Client().ApplyURI("mongodb+srv://"+mongoUser+":"+mongoPassword+"@cluster-gestion-vehicul.czzbkqo.mongodb.net/?retryWrites=true&w=majority&appName=cluster-gestion-vehicular").SetServerAPIOptions(serverAPI)
 
-	// local
-	//clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
-
-	// mongo
-	clientOptions := options.Client().ApplyURI("mongodb+srv://nahuelaba96:RMc2axKooRJ5hGrT@cluster-gestion-vehicul.czzbkqo.mongodb.net/?retryWrites=true&w=majority&appName=cluster-gestion-vehicular")
-	client, err := mongo.Connect(ctx, clientOptions)
+	// Create a new client and connect to the server
+  	client, err := mongo.Connect(context.TODO(), opts)
 	if err != nil {
 		log.Fatal("Error al conectar con MongoDB:", err)
+	}
+
+	// Ping para asegurarse de que se conecta
+	if err := client.Database("miapp").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Err(); err != nil {
+		log.Fatal("Ping falló:", err)
 	}
 
 	MongoClient = client
