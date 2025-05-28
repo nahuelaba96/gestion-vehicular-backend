@@ -3,7 +3,6 @@ package main
 import (
 	"gestion-vehicular-backend/database"
 	"gestion-vehicular-backend/routes"
-	"log"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -12,23 +11,20 @@ import (
 )
 
 func main() {
-    r := gin.Default()
+	r := gin.Default()
 
-   	err := godotenv.Load()
-	if err != nil {
-		log.Println("Error loading .env file")
-	}
+	_ = godotenv.Load() // silencioso, no interrumpe si falta el .env
 
-   	database.ConnectMongo()
+	database.ConnectMongo()
 	// Middleware CORS
- 	r.Use(cors.New(cors.Config{
-        AllowOrigins:     []string{"http://localhost:5173", "http://127.0.0.1:5173"},
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173", "http://127.0.0.1:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"}, // Asegúrate que Authorization esté si lo usas
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
-    }))
+	}))
 
 	// Ahora las rutas
 	routes.SetupGestionVehicularRoutes(r)
