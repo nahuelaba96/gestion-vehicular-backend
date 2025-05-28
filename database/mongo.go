@@ -33,7 +33,7 @@ func ConnectMongo() {
 	}
 
 	// Ping para asegurarse de que se conecta
-	if err := client.Database("miapp").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Err(); err != nil {
+	if err := client.Database("miapp").RunCommand(context.TODO(), bson.D{{Key: "ping", Value: 1}}).Err(); err != nil {
 		log.Fatal("Ping falló:", err)
 	}
 
