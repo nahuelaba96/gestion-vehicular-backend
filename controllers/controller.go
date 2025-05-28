@@ -8,32 +8,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var datos = []models.Datos{}
+var datos = []models.Vehiculo{}
 var nextID int64 = 1
 
 func GetDatos(c *gin.Context) {
-	datos := models.Datos{
+	vehiculo := models.Vehiculo{
 		ID:                  1,
-		Auto:                "BMW 323I 2008",
+		Tipo:                "Sedán",
 		Patente:             "GWO040",
-		TipoBitacora:        "Compra",
-		ComponenteRecambio:  "Cubiertas traseras",
-		ComponenteInstalado: "SI",
-		Marca:               "Sailum",
-		Fecha:               "2024-08-27",
-		Vendedor:            "Saracho Neumaticos",
-		Kilometro:           171191,
-		Costo:               320000.0,
-		Nota:                "Compra 2 cubiertas 235/40/18 marca Sailum",
-		FechaProximo:        "2034-08-27",
-		KilometrosProximo:   180000,
+		Marca:               "BMW",
+		Modelo:              "323i",
+		Anio:                "2008",
+		TipoCombustible:     "Gasolina",
+		Kilometros:          173020,
+		Nota:                "Vehículo en buen estado, mantenimiento reciente.",
 	}
+	datos = []models.Vehiculo{} // Reiniciar el slice de Vehiculo
+	datos := []models.Vehiculo{vehiculo}
+
 
 	c.JSON(http.StatusOK, datos)
 }
 
 func CreateGestionVehicular(c *gin.Context) {
-	var newBitacora models.Datos
+	var newBitacora models.Vehiculo
 	if err := c.ShouldBindJSON(&newBitacora); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
