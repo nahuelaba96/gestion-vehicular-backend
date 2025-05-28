@@ -3,7 +3,6 @@ package database
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
@@ -14,14 +13,11 @@ import (
 
 var MongoClient *mongo.Client
 var VehiculosCollection *mongo.Collection
+var GastosCollection *mongo.Collection
 
 func ConnectMongo() {
 	mongoUser := os.Getenv("MONGO_USER")
 	mongoPassword := os.Getenv("MONGO_PASSWORD")
-
-	fmt.Println("MONGO_USER:", mongoUser)
-	fmt.Println("MONGO_PASSWORD:", mongoPassword)
-
 
 	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
   	opts := options.Client().ApplyURI("mongodb+srv://"+mongoUser+":"+mongoPassword+"@cluster-gestion-vehicul.czzbkqo.mongodb.net/?retryWrites=true&w=majority&appName=cluster-gestion-vehicular").SetServerAPIOptions(serverAPI)
@@ -39,6 +35,7 @@ func ConnectMongo() {
 
 	MongoClient = client
 	VehiculosCollection = client.Database("miapp").Collection("vehiculos")
+	GastosCollection = client.Database("miapp").Collection("gastos")
 
 	log.Println("Conectado a MongoDB")
 }

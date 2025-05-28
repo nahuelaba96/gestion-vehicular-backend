@@ -34,6 +34,32 @@ func GetVehiculos(c *gin.Context) {
 	c.JSON(http.StatusOK, vehiculos)
 }
 
+func ObtenerGastosPorVehiculo(c *gin.Context) {
+	idStr := c.Param("id")
+	vehiculoID, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	filter := bson.M{"vehiculo_id": vehiculoID}
+	cursor, err := database.GastosCollection.Find(context.TODO(), filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al buscar gastos"})
+		return
+	}
+	defer cursor.Close(context.TODO())
+
+	var gastos []models.Gasto
+	if err := cursor.All(context.TODO(), &gastos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar gastos"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gastos)
+}
+
+
 func CreateVehiculo(c *gin.Context) {
 	var v models.Vehiculo
 	if err := c.BindJSON(&v); err != nil {
@@ -85,9 +111,17 @@ func EliminarVehiculo(c *gin.Context) {
 
 func ActualizarVehiculo(c *gin.Context) {
 	id := c.Param("id")
-	var v models.Vehiculo
 
-	if err := c.BindJSON(&v); err != nil {
+	// Parsear ID
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	// Leer solo los campos enviados
+	var body map[string]interface{}
+	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -95,15 +129,7 @@ func ActualizarVehiculo(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	update := bson.M{
-		"$set": v,
-	}
-
-	objID, err := primitive.ObjectIDFromHex(id)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
-		return
-	}
+	update := bson.M{"$set": body}
 
 	result, err := database.VehiculosCollection.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	if err != nil {
