@@ -10,7 +10,6 @@ func SetupGestionVehicularRoutes(r *gin.Engine) {
 	bitacora := r.Group("/gestion-vehicular")
 	{
 		bitacora.GET("/", controllers.GetDatos)
-		bitacora.POST("/", controllers.CreateGestionVehicular)
-		bitacora.GET("/:id", controllers.GetGestionVehicularByID)
+		bitacora.POST("/create-vehicle", controllers.CreateVehiculo)
 	}
 }

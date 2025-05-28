@@ -1,14 +1,19 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
+	"gestion-vehicular-backend/database"
 	"gestion-vehicular-backend/routes"
-	"github.com/gin-contrib/cors"
 	"time"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
    r := gin.Default()
+
+   	database.ConnectMongo()
+
 
 	// Middleware CORS
  	r.Use(cors.New(cors.Config{

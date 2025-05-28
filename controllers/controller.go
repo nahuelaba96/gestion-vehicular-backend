@@ -1,58 +1,59 @@
 package controllers
 
 import (
+	"context"
+	"gestion-vehicular-backend/database"
 	"gestion-vehicular-backend/models"
+	"log"
 	"net/http"
-	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 var datos = []models.Vehiculo{}
-var nextID int64 = 1
 
 func GetDatos(c *gin.Context) {
-	vehiculo := models.Vehiculo{
-		ID:                  1,
-		Tipo:                "Sedán",
-		Patente:             "GWO040",
-		Marca:               "BMW",
-		Modelo:              "323i",
-		Anio:                "2008",
-		TipoCombustible:     "Gasolina",
-		Kilometros:          173020,
-		Nota:                "Vehículo en buen estado, mantenimiento reciente.",
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cursor, err := database.VehiculosCollection.Find(ctx, bson.M{})
+	if err != nil {
+		log.Println("Error al buscar vehículos:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo obtener la lista de vehículos"})
+		return
 	}
-	datos = []models.Vehiculo{} // Reiniciar el slice de Vehiculo
-	datos := []models.Vehiculo{vehiculo}
+	defer cursor.Close(ctx)
 
+	var vehiculos []models.Vehiculo
+	if err := cursor.All(ctx, &vehiculos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al parsear datos"})
+		return
+	}
 
-	c.JSON(http.StatusOK, datos)
+	c.JSON(http.StatusOK, vehiculos)
 }
 
-func CreateGestionVehicular(c *gin.Context) {
-	var newBitacora models.Vehiculo
-	if err := c.ShouldBindJSON(&newBitacora); err != nil {
+func CreateVehiculo(c *gin.Context) {
+	var v models.Vehiculo
+	if err := c.BindJSON(&v); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	newBitacora.ID = nextID
-	nextID++
-	datos = append(datos, newBitacora)
-	c.JSON(http.StatusCreated, newBitacora)
-}
 
-func GetGestionVehicularByID(c *gin.Context) {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	v.FechaCreacion = time.Now() // Asignar la fecha de creación actual
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := database.VehiculosCollection.InsertOne(ctx, v)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		log.Println("Error al insertar:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el vehículo"})
 		return
 	}
-	for _, b := range datos {
-		if b.ID == id {
-			c.JSON(http.StatusOK, b)
-			return
-		}
-	}
-	c.JSON(http.StatusNotFound, gin.H{"message": "Registro no encontrado"})
+
+	c.JSON(http.StatusCreated, gin.H{"mensaje": "Vehículo creado con éxito"})
 }
+
