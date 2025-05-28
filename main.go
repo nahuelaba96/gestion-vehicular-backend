@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-   r := gin.Default()
+    r := gin.Default()
 
    	err := godotenv.Load()
 	if err != nil {
