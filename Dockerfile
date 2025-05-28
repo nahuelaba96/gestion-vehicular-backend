@@ -18,6 +18,9 @@ RUN go build -ldflags="-s -w" -o app
 # Etapa final: imagen mínima
 FROM alpine:latest
 
+# 🛠 Instalá certificados TLS
+RUN apk add --no-cache ca-certificates
+
 WORKDIR /app
 
 # Copiamos el binario desde la etapa anterior
