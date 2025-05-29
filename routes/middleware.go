@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
@@ -11,33 +12,47 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Intentar obtener el token desde la cookie
-		tokenString, err := c.Cookie("jwt")
-		if err != nil {
+		authHeader := c.GetHeader("Authorization")
+		fmt.Println("[AuthMiddleware] Authorization header:", authHeader)
+
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			fmt.Println("[AuthMiddleware] Token no provisto o mal formado")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token no provisto"})
 			c.Abort()
 			return
 		}
 
-		// Obtener la clave secreta desde las variables de entorno
-		jwtSecreto := os.Getenv("JWT_SECRET") 
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		jwtSecreto := os.Getenv("JWT_SECRET")
 
-		// Verificar el token con la misma clave secreta que usaste al generarlo
+		if jwtSecreto == "" {
+			fmt.Println("[AuthMiddleware] JWT_SECRET no está seteado en el entorno")
+		}
+
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			// Validar algoritmo
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("método de firma inesperado")
 			}
 			return []byte(jwtSecreto), nil
 		})
 
-		if err != nil || !token.Valid {
+		if err != nil {
+			fmt.Printf("[AuthMiddleware] Error al verificar token: %v\n", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido"})
 			c.Abort()
 			return
 		}
 
+		if !token.Valid {
+			fmt.Println("[AuthMiddleware] Token inválido (pero sin error)")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido"})
+			c.Abort()
+			return
+		}
+
+		fmt.Println("[AuthMiddleware] Token válido")
 		c.Next()
 	}
 }
+
 
