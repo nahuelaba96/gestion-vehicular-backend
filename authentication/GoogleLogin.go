@@ -2,6 +2,7 @@ package authentication
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 
@@ -19,18 +20,26 @@ func GoogleLogin(c *gin.Context) {
 	}
 
 	oauthClient := os.Getenv("OAUTH_CLIENT")
+	if oauthClient == "" {
+		log.Println("OAUTH_CLIENT no seteado")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Configuración incorrecta del servidor"})
+		return
+	}
 
 	// Validar token con Google
 	payload, err := idtoken.Validate(context.Background(), req.Token, oauthClient)
 	if err != nil {
+		log.Println("Error al validar token de Google:", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token no válido"})
 		return
 	}
 
-	email := payload.Claims["email"].(string)
-	name := payload.Claims["name"].(string)
-
-	// Podés guardar usuario en tu base si no existe
+	email, ok := payload.Claims["email"].(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Email no encontrado en el token"})
+		return
+	}
+	name, _ := payload.Claims["name"].(string)
 
 	// Crear JWT propio
 	tokenStr, err := CrearJWT(email, name)
@@ -39,8 +48,20 @@ func GoogleLogin(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("jwt", tokenStr, 3600*24, "/", "", true, true)
+	// Setear cookie compatible con cross-origin
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "jwt",
+		Value:    tokenStr,
+		Path:     "/",
+		Domain:   "", // sin dominio para que funcione en Railway (o usar el dominio final si tenés uno)
+		MaxAge:   3600 * 24,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteNoneMode, // esto es clave
+	})
 
+	// También podés enviar el token por JSON para testing/local
 	c.JSON(http.StatusOK, gin.H{"token": tokenStr})
 }
+
 
