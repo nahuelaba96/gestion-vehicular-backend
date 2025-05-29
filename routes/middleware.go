@@ -2,6 +2,7 @@ package routes
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -13,10 +14,10 @@ import (
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
-		fmt.Println("[AuthMiddleware] Authorization header:", authHeader)
+		log.Println("[AuthMiddleware] Authorization header:", authHeader)
 
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			fmt.Println("[AuthMiddleware] Token no provisto o mal formado")
+			log.Println("[AuthMiddleware] Token no provisto o mal formado")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token no provisto"})
 			c.Abort()
 			return
@@ -26,7 +27,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		jwtSecreto := os.Getenv("JWT_SECRET")
 
 		if jwtSecreto == "" {
-			fmt.Println("[AuthMiddleware] JWT_SECRET no está seteado en el entorno")
+			log.Println("[AuthMiddleware] JWT_SECRET no está seteado en el entorno")
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -37,20 +38,20 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil {
-			fmt.Printf("[AuthMiddleware] Error al verificar token: %v\n", err)
+			log.Printf("[AuthMiddleware] Error al verificar token: %v\n", err)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido"})
 			c.Abort()
 			return
 		}
 
 		if !token.Valid {
-			fmt.Println("[AuthMiddleware] Token inválido (pero sin error)")
+			log.Println("[AuthMiddleware] Token inválido (pero sin error)")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token inválido"})
 			c.Abort()
 			return
 		}
 
-		fmt.Println("[AuthMiddleware] Token válido")
+		log.Println("[AuthMiddleware] Token válido")
 		c.Next()
 	}
 }
