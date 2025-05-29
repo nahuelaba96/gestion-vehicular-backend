@@ -7,7 +7,8 @@ import (
 )
 
 type Vehiculo struct {
-	ID              primitive.ObjectID `bson:"_id,omitempty" json:"id,omitempty"`
+	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID        primitive.ObjectID `bson:"user_id,omitempty" json:"-"`
 	Tipo            string             `json:"tipo" bson:"tipo"`
 	Patente         string             `json:"patente" bson:"patente"`
 	Marca           string             `json:"marca" bson:"marca"`

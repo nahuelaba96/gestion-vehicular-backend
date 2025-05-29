@@ -14,6 +14,7 @@ import (
 var MongoClient *mongo.Client
 var VehiculosCollection *mongo.Collection
 var GastosCollection *mongo.Collection
+var UserCollection *mongo.Collection
 
 func ConnectMongo() {
 	mongoUser := os.Getenv("MONGO_USER")
@@ -36,6 +37,7 @@ func ConnectMongo() {
 	MongoClient = client
 	VehiculosCollection = client.Database("miapp").Collection("vehiculos")
 	GastosCollection = client.Database("miapp").Collection("gastos")
+	UserCollection = client.Database("miapp").Collection("usuarios")
 
 	log.Println("Conectado a MongoDB")
 }

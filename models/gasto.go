@@ -14,6 +14,7 @@ type ItemGasto struct {
 
 type Gasto struct {
 	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	UserID      primitive.ObjectID `bson:"user_id"`
 	VehiculoID  primitive.ObjectID `bson:"vehiculo_id" json:"vehiculo_id"`
 	FechaInsert time.Time          `bson:"fecha_insert" json:"fecha_insert"`
 	Fecha       string             `bson:"fecha" json:"fecha"`

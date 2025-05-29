@@ -52,6 +52,31 @@ func ListarGastos(c *gin.Context) {
 	c.JSON(http.StatusOK, gastos)
 }
 
+func ObtenerGastosPorVehiculo(c *gin.Context) {
+	idStr := c.Param("id")
+	vehiculoID, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
+		return
+	}
+
+	filter := bson.M{"vehiculo_id": vehiculoID}
+	cursor, err := database.GastosCollection.Find(context.TODO(), filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al buscar gastos"})
+		return
+	}
+	defer cursor.Close(context.TODO())
+
+	var gastos []models.Gasto
+	if err := cursor.All(context.TODO(), &gastos); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al procesar gastos"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gastos)
+}
+
 func ActualizarGasto(c *gin.Context) {
 	idStr := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idStr)
