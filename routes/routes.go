@@ -30,6 +30,7 @@ func SetupPublicRoutes(r *gin.Engine) {
 	auth := r.Group("/auth")
 	{
 		auth.POST("/google", authentication.GoogleLogin)
+		auth.GET("/verify", authentication.VerifyToken)
 	}
 
 }

@@ -20,7 +20,6 @@ func GoogleLogin(c *gin.Context) {
 
 	oauthClient := os.Getenv("OAUTH_CLIENT")
 
-
 	// Validar token con Google
 	payload, err := idtoken.Validate(context.Background(), req.Token, oauthClient)
 	if err != nil {
@@ -39,6 +38,8 @@ func GoogleLogin(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo generar token"})
 		return
 	}
+
+	c.SetCookie("jwt", tokenStr, 3600*24, "/", "localhost", false, true)
 
 	c.JSON(http.StatusOK, gin.H{"token": tokenStr})
 }
