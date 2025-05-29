@@ -39,7 +39,7 @@ func GoogleLogin(c *gin.Context) {
 		return
 	}
 
-	c.SetCookie("jwt", tokenStr, 3600*24, "/", "localhost", false, true)
+	c.SetCookie("jwt", tokenStr, 3600*24, "/", "localhost", false, false)
 
 	c.JSON(http.StatusOK, gin.H{"token": tokenStr})
 }
