@@ -11,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func CrearGasto(c *gin.Context) {
@@ -29,18 +31,21 @@ func CrearGasto(c *gin.Context) {
 		return
 	}
 
-	if gasto.VehiculoID.IsZero() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "ID del vehículo es requerido"})
-		return
+	// Validar si se envió vehiculo_id
+	if !gasto.VehiculoID.IsZero() {
+		// Si vino, validar que exista y pertenezca al usuario
+		filtroVehiculo := bson.M{"_id": gasto.VehiculoID, "user_id": userID}
+		count, err := database.VehiculosCollection.CountDocuments(ctx, filtroVehiculo)
+		if err != nil || count == 0 {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Vehículo no válido o no pertenece al usuario"})
+			return
+		}
+	} else {
+		// Si no vino, dejar el campo vacío o nulo, para que sea opcional
+		gasto.VehiculoID = primitive.NilObjectID
 	}
 
-	filtroVehiculo := bson.M{"_id": gasto.VehiculoID, "user_id": userID}
-	count, err := database.VehiculosCollection.CountDocuments(ctx, filtroVehiculo)
-	if err != nil || count == 0 {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Vehículo no válido o no pertenece al usuario"})
-		return
-	}
-
+	// Calcular total
 	var total float64
 	for _, item := range gasto.Items {
 		total += float64(item.Cantidad) * item.PrecioUnitario
@@ -55,8 +60,11 @@ func CrearGasto(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"id": res.InsertedID})
+	gasto.ID = res.InsertedID.(primitive.ObjectID)
+
+	c.JSON(http.StatusCreated, gasto)
 }
+
 
 func ListarGastos(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -162,24 +170,31 @@ func ActualizarGasto(c *gin.Context) {
 		}
 	}
 
-	delete(body, "user_id")
+	delete(body, "user_id") // prevenir que se intente modificar
 
 	filter := bson.M{"_id": objID, "user_id": userID}
 	update := bson.M{"$set": body}
 
-	res, err := database.GastosCollection.UpdateOne(ctx, filter, update)
+	var gastoActualizado models.Gasto
+	err = database.GastosCollection.FindOneAndUpdate(
+		ctx,
+		filter,
+		update,
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&gastoActualizado)
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar gasto"})
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Gasto no encontrado o no pertenece al usuario"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Error al actualizar gasto"})
+		}
 		return
 	}
 
-	if res.MatchedCount == 0 {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Gasto no encontrado o no pertenece al usuario"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"matched": res.MatchedCount, "modified": res.ModifiedCount})
+	c.JSON(http.StatusOK, gastoActualizado)
 }
+
 
 func EliminarGasto(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

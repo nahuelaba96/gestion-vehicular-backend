@@ -12,6 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func GetVehiculos(c *gin.Context) {
@@ -62,14 +64,16 @@ func CreateVehiculo(c *gin.Context) {
 	v.UserID = userID
 	v.FechaCreacion = time.Now()
 
-	_, err = database.VehiculosCollection.InsertOne(ctx, v)
+	res, err := database.VehiculosCollection.InsertOne(ctx, v)
 	if err != nil {
 		log.Println("Error al insertar vehículo:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el vehículo"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"mensaje": "Vehículo creado con éxito"})
+	v.ID = res.InsertedID.(primitive.ObjectID)
+
+	c.JSON(http.StatusCreated, v)
 }
 
 func EliminarVehiculo(c *gin.Context) {
@@ -122,7 +126,6 @@ func ActualizarVehiculo(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Obtener user_id seguro con chequeo
 	val, ok := c.Get("user_id")
 	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se pudo obtener el usuario autenticado"})
@@ -135,7 +138,6 @@ func ActualizarVehiculo(c *gin.Context) {
 		return
 	}
 
-	// Obtener y validar el ID del vehículo
 	idStr := c.Param("id")
 	objID, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
@@ -143,30 +145,35 @@ func ActualizarVehiculo(c *gin.Context) {
 		return
 	}
 
-	// Leer solo los campos enviados
 	var body map[string]interface{}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Opcional: prevenir updates a campos sensibles, ej: user_id o _id
 	delete(body, "user_id")
 	delete(body, "_id")
 
 	update := bson.M{"$set": body}
+	filter := bson.M{"_id": objID, "user_id": userID}
 
-	result, err := database.VehiculosCollection.UpdateOne(ctx, bson.M{"_id": objID, "user_id": userID}, update)
+	var vehiculoActualizado models.Vehiculo
+	err = database.VehiculosCollection.FindOneAndUpdate(
+		ctx,
+		filter,
+		update,
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&vehiculoActualizado)
+
 	if err != nil {
-		log.Println("Error al actualizar vehículo:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar el vehículo"})
+		if err == mongo.ErrNoDocuments {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Vehículo no encontrado o no pertenece al usuario"})
+		} else {
+			log.Println("Error al actualizar vehículo:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo actualizar el vehículo"})
+		}
 		return
 	}
 
-	if result.MatchedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Vehículo no encontrado o no pertenece al usuario"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"mensaje": "Vehículo actualizado con éxito"})
+	c.JSON(http.StatusOK, vehiculoActualizado)
 }

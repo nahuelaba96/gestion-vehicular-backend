@@ -13,12 +13,13 @@ type ItemGasto struct {
 }
 
 type Gasto struct {
-	ID          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ID          primitive.ObjectID `bson:"_id" json:"id"`
 	UserID      primitive.ObjectID `bson:"user_id" json:"-"`
 	VehiculoID  primitive.ObjectID `bson:"vehiculo_id" json:"vehiculo_id"`
 	FechaInsert time.Time          `bson:"fecha_insert" json:"fecha_insert"`
 	Fecha       string             `bson:"fecha" json:"fecha"`
 	Proveedor   string             `bson:"proveedor" json:"proveedor"`
+	Nota        string             `bson:"nota" json:"nota"`
 	Items       []ItemGasto        `bson:"items" json:"items"`
 	Total       float64            `bson:"total" json:"total"`
 }
