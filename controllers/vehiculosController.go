@@ -4,6 +4,7 @@ import (
 	"context"
 	"gestion-vehicular-backend/database"
 	"gestion-vehicular-backend/models"
+	"gestion-vehicular-backend/utils"
 	"log"
 	"net/http"
 	"time"
@@ -17,15 +18,9 @@ func GetVehiculos(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	val, ok := c.Get("user_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se pudo obtener el usuario autenticado"})
-		return
-	}
-
-	userID, ok := val.(primitive.ObjectID)
-	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "ID de usuario inválido"})
+	userID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -47,30 +42,29 @@ func GetVehiculos(c *gin.Context) {
 }
 
 func CreateVehiculo(c *gin.Context) {
-	var v models.Vehiculo
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	if err := c.BindJSON(&v); err != nil {
+	userID, err := utils.GetUserID(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	var v models.Vehiculo
+	if err := c.ShouldBindJSON(&v); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Obtener el user_id del contexto (puesto por el AuthMiddleware)
-	userID, ok := c.Get("user_id")
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Usuario no autenticado"})
-		return
-	}
+	// Asociar usuario, ID y fecha creación
+	v.ID = primitive.NewObjectID()
+	v.UserID = userID
+	v.FechaCreacion = time.Now()
 
-	v.ID = primitive.NewObjectID()          // ID del vehículo
-	v.UserID = userID.(primitive.ObjectID)  // Asociar al usuario autenticado
-	v.FechaCreacion = time.Now()            // Fecha actual
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	_, err := database.VehiculosCollection.InsertOne(ctx, v)
+	_, err = database.VehiculosCollection.InsertOne(ctx, v)
 	if err != nil {
-		log.Println("Error al insertar:", err)
+		log.Println("Error al insertar vehículo:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo guardar el vehículo"})
 		return
 	}
@@ -78,21 +72,38 @@ func CreateVehiculo(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"mensaje": "Vehículo creado con éxito"})
 }
 
-
 func EliminarVehiculo(c *gin.Context) {
-	id := c.Param("id")
-	userID := c.MustGet("user_id").(primitive.ObjectID)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	objID, err := primitive.ObjectIDFromHex(id)
+	// Obtener user_id seguro con chequeo
+	val, ok := c.Get("user_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se pudo obtener el usuario autenticado"})
+		return
+	}
+
+	userID, ok := val.(primitive.ObjectID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ID de usuario inválido"})
+		return
+	}
+
+	// Obtener y validar el ID del vehículo
+	idStr := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
 		return
 	}
 
-	result, err := database.VehiculosCollection.DeleteOne(ctx, bson.M{"_id": objID, "user_id": userID})
+	// Eliminar solo si el vehículo pertenece al usuario autenticado
+	filter := bson.M{
+		"_id":     objID,
+		"user_id": userID,
+	}
+
+	result, err := database.VehiculosCollection.DeleteOne(ctx, filter)
 	if err != nil {
 		log.Println("Error al eliminar vehículo:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "No se pudo eliminar el vehículo"})
@@ -100,7 +111,7 @@ func EliminarVehiculo(c *gin.Context) {
 	}
 
 	if result.DeletedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Vehículo no encontrado"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Vehículo no encontrado o no pertenece al usuario"})
 		return
 	}
 
@@ -108,11 +119,25 @@ func EliminarVehiculo(c *gin.Context) {
 }
 
 func ActualizarVehiculo(c *gin.Context) {
-	id := c.Param("id")
-	userID := c.MustGet("user_id").(primitive.ObjectID)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	// Parsear ID
-	objID, err := primitive.ObjectIDFromHex(id)
+	// Obtener user_id seguro con chequeo
+	val, ok := c.Get("user_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "No se pudo obtener el usuario autenticado"})
+		return
+	}
+
+	userID, ok := val.(primitive.ObjectID)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "ID de usuario inválido"})
+		return
+	}
+
+	// Obtener y validar el ID del vehículo
+	idStr := c.Param("id")
+	objID, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "ID inválido"})
 		return
@@ -125,8 +150,9 @@ func ActualizarVehiculo(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Opcional: prevenir updates a campos sensibles, ej: user_id o _id
+	delete(body, "user_id")
+	delete(body, "_id")
 
 	update := bson.M{"$set": body}
 
@@ -138,7 +164,7 @@ func ActualizarVehiculo(c *gin.Context) {
 	}
 
 	if result.MatchedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Vehículo no encontrado"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Vehículo no encontrado o no pertenece al usuario"})
 		return
 	}
 
