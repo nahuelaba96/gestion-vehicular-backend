@@ -13,7 +13,7 @@ type Vehiculo struct {
 	Patente         string             `json:"patente" bson:"patente"`
 	Marca           string             `json:"marca" bson:"marca"`
 	Modelo          string             `json:"modelo" bson:"modelo"`
-	Anio            string             `json:"anio" bson:"anio"`
+	Anio            float64            `json:"anio" bson:"anio"`
 	TipoCombustible string             `json:"tipo_combustible" bson:"tipo_combustible"`
 	Kilometros      int64              `json:"kilometros" bson:"kilometros"`
 	Nota            string             `json:"nota" bson:"nota"`
