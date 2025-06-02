@@ -53,6 +53,7 @@ func CrearGasto(c *gin.Context) {
 	gasto.Total = total
 	gasto.FechaInsert = time.Now()
 	gasto.UserID = userID
+	gasto.ID = primitive.NewObjectID()
 
 	res, err := database.GastosCollection.InsertOne(ctx, gasto)
 	if err != nil {
